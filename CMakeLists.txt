@@ -12,8 +12,14 @@ project(
 # want to keep this main file easy to read).
 include(utils.cmake)
 
+# Include glfw directory, to define the 'glfw' target
+add_subdirectory(glfw)
+
 # Add main.cpp as executable
 add_executable(${PROJECT_NAME} main.cpp)
+
+# Add the 'glfw' target as a dependency of our App
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
 
 # Use C++17
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
