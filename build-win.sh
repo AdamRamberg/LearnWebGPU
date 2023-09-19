@@ -1,5 +1,5 @@
 # Create build files
-cmake . -B build
+cmake . -B build -DWEBGPU_BACKEND=DAWN
 # Build program
 cmake --build build
 
