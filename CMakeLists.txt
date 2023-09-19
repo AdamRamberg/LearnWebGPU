@@ -20,7 +20,11 @@ add_subdirectory(webgpu)
 add_subdirectory(glfw3webgpu)
 
 # Add main.cpp as executable
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} 
+    main.cpp
+    webgpu-utils.h
+    webgpu-utils.cpp
+)
 
 # Add the dependencies to link
 target_link_libraries(${PROJECT_NAME} PRIVATE 
