@@ -36,12 +36,22 @@ int main (int, char**) {
         return 1;
     }
 
+    // Setup adapter
     WGPUSurface surface = glfwGetWGPUSurface(instance, window);
     WGPURequestAdapterOptions adapterOpts = {};
     adapterOpts.nextInChain = nullptr;
     adapterOpts.compatibleSurface = surface;
-
     WGPUAdapter adapter = requestAdapter(instance, &adapterOpts);
+
+    // Setup device
+    WGPUDeviceDescriptor deviceDesc = {};
+    deviceDesc.nextInChain = nullptr;
+    deviceDesc.label = "My device";
+    deviceDesc.requiredFeaturesCount = 0;
+    deviceDesc.requiredLimits = nullptr;
+    deviceDesc.defaultQueue.nextInChain = nullptr;
+    deviceDesc.defaultQueue.label = "My default queue";
+    WGPUDevice device = requestDevice(adapter, &deviceDesc);
 
     while (!glfwWindowShouldClose(window)) {
         // Check whether the user clicked on the close button (and any other
@@ -51,6 +61,7 @@ int main (int, char**) {
 
     wgpuSurfaceRelease(surface);
     wgpuAdapterRelease(adapter);
+    wgpuDeviceRelease(device);
 	wgpuInstanceRelease(instance);
 
     glfwDestroyWindow(window);
