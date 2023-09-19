@@ -3,4 +3,4 @@ cmake . -B build
 # Build program
 cmake --build build
 
-build/App  # linux/macOS
+build/LearnWebGPU  # linux/macOS

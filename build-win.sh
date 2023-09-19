@@ -3,4 +3,4 @@ cmake . -B build
 # Build program
 cmake --build build
 
-build\Debug\App.exe  # Windows
+build\Debug\LearnWebGPU.exe  # Windows
