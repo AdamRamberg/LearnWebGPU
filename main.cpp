@@ -10,6 +10,8 @@ const int SCREEN_HEIGHT = 480;
 const char* SCREEN_TITLE = "Learn WebGPU";
 
 int main (int, char**) {
+    std::cout << "Starting application... 🚀" << std::endl;
+
 	WGPUInstanceDescriptor desc = {};
 	desc.nextInChain = nullptr;
 	WGPUInstance instance = wgpuCreateInstance(&desc);
@@ -52,6 +54,14 @@ int main (int, char**) {
     deviceDesc.defaultQueue.nextInChain = nullptr;
     deviceDesc.defaultQueue.label = "My default queue";
     WGPUDevice device = requestDevice(adapter, &deviceDesc);
+
+    // Setup device error callback
+    auto onDeviceError = [](WGPUErrorType type, char const * message, void * userdata) {
+        std::cout << "Uncaptured device error: type " << type;
+        if (message) std::cout << " (" << message << ")";
+        std::cout << std::endl;
+    };
+    wgpuDeviceSetUncapturedErrorCallback(device, onDeviceError, nullptr);
 
     while (!glfwWindowShouldClose(window)) {
         // Check whether the user clicked on the close button (and any other
