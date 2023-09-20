@@ -12,6 +12,11 @@ parser.add_argument("--backend", type=str,
     help="WebGPU backend to use (wgpu or dawn)"
 )
 
+parser.add_argument("--clean", action="store_true",
+    default=False,
+    help="If true, clean the build folder before building"
+)
+
 args = parser.parse_args()
 
 backend = args.backend
@@ -21,8 +26,12 @@ if (backend not in backendOptions):
 
 buildFolder = f"build-{backend}"
 
+if (args.clean):
+    print(f"🧹 Cleaning build folder")
+    subprocess.run(["rm", "-rf", buildFolder])
+
 print(f"🏭 Create build files with {backend} backend")
-subprocess.run(["cmake", ".", "-B", buildFolder, "-D", f"DWEBGPU_BACKEND={backend.upper()}"])
+subprocess.run(["cmake", ".", "-B", buildFolder, "-D", f"WEBGPU_BACKEND={backend.upper()}"])
 
 print(f"🏗️ Building app for {platform.system()}")
 subprocess.run(["cmake", "--build", buildFolder])
