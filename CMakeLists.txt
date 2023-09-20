@@ -19,15 +19,13 @@ add_subdirectory(webgpu)
 # Helper to get surface for current OS
 add_subdirectory(glfw3webgpu)
 
-# Set directives and resolve webgpu cpp wrapper depending on backend
+# Resolve webgpu cpp wrapper depending on backend
 string(TOUPPER ${WEBGPU_BACKEND} WEBGPU_BACKEND_U)
 if (WEBGPU_BACKEND_U STREQUAL "WGPU")
     set(WEBGPU_CPPWRAPPER, "webgpu-cppwrapper/wgpu-native/webgpu.hpp")
-    add_definitions(-DWGPU_NATIVE)
 endif()
 if (WEBGPU_BACKEND_U STREQUAL "DAWN")
     set(WEBGPU_CPPWRAPPER, "webgpu-cppwrapper/dawn/webgpu.hpp")
-    add_definitions(-DWGPU_DAWN)
 endif()
 
 # Add main.cpp as executable
