@@ -1,3 +1,5 @@
 build
+build-wgpu
+build-dawn
 .DS_STORE
 .vscode
