@@ -43,20 +43,48 @@ int main (int, char**) {
         return 1;
     }
 
-    // Setup adapter
+    std::cout << "🚚 Requesting adapter..." << std::endl;
     Surface surface = glfwGetWGPUSurface(instance, window);
 	RequestAdapterOptions adapterOpts{};
     adapterOpts.compatibleSurface = surface;
     Adapter adapter = instance.requestAdapter(adapterOpts);
+    std::cout << "✅ Got adapter: " << adapter << std::endl;
+
+    // Get supported limits
+	SupportedLimits supportedLimits;
+	adapter.getLimits(&supportedLimits);
+
+    std::cout << "🚚 Requesting device..." << std::endl;
+    // Create required limits
+    RequiredLimits requiredLimits = Default;
+	// We use at most 1 vertex attribute for now
+	requiredLimits.limits.maxVertexAttributes = 1;
+	// We should also tell that we use 1 vertex buffers
+	requiredLimits.limits.maxVertexBuffers = 1;
+	// Maximum size of a buffer is 6 vertices of 2 float each
+	requiredLimits.limits.maxBufferSize = 6 * 2 * sizeof(float);
+	// Maximum stride between 2 consecutive vertices in the vertex buffer
+	requiredLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float);
+	// This must be set even if we do not use storage buffers for now
+	requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+	// This must be set even if we do not use uniform buffers for now
+	requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
 
     // Setup device
     DeviceDescriptor deviceDesc{};
     deviceDesc.label = "My device";
-    deviceDesc.requiredLimits = nullptr;
+    deviceDesc.requiredFeaturesCount = 0;
+    deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.defaultQueue.label = "My default queue";
-    Device device = adapter.requestDevice(deviceDesc);
 
-    Queue queue = device.getQueue();
+    Device device = adapter.requestDevice(deviceDesc);
+    std::cout << "✅ Got device: " << device << std::endl;
+
+	adapter.getLimits(&supportedLimits);
+	std::cout << "ℹ️ adapter.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
+
+	device.getLimits(&supportedLimits);
+	std::cout << "ℹ️ device.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
 
     // Setup device error callback
     auto onDeviceError = [](ErrorType type, char const * message) {
@@ -66,7 +94,9 @@ int main (int, char**) {
     };
     device.setUncapturedErrorCallback(onDeviceError);
 
-    // Setup swap chain
+    Queue queue = device.getQueue();
+
+    std::cout << "🚚 Creating swapchain..." << std::endl;
     SwapChainDescriptor swapChainDesc = {};
     swapChainDesc.width = SCREEN_WIDTH;
     swapChainDesc.height = SCREEN_HEIGHT;
@@ -84,21 +114,15 @@ int main (int, char**) {
 	// texture is always the oldest one, like a regular queue.
     swapChainDesc.presentMode = PresentMode::Fifo;
     SwapChain swapChain = device.createSwapChain(surface, swapChainDesc);
+    std::cout << "✅ Swapchain: " << swapChain << std::endl;
 
-    // Define shaders
+	std::cout << "🚚 Creating shader module..." << std::endl;
 	const char* shaderSource = R"(
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-	var p = vec2f(0.0, 0.0);
-	if (in_vertex_index == 0u) {
-		p = vec2f(-0.5, -0.5);
-	} else if (in_vertex_index == 1u) {
-		p = vec2f(0.5, -0.5);
-	} else {
-		p = vec2f(0.0, 0.5);
-	}
-	return vec4f(p, 0.0, 1.0);
+fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
+	return vec4f(in_vertex_position, 0.0, 1.0);
 }
+
 
 @fragment
 fn fs_main() -> @location(0) vec4f {
@@ -123,12 +147,32 @@ fn fs_main() -> @location(0) vec4f {
 	shaderCodeDesc.code = shaderSource;
 
     ShaderModule shaderModule = device.createShaderModule(shaderDesc);
+	std::cout << "✅ Shader module: " << shaderModule << std::endl;
+
+	std::cout << "🚚 Creating render pipeline..." << std::endl;
+	// Vertex fetch
+	VertexAttribute vertexAttrib;
+	// == Per attribute ==
+	// Corresponds to @location(...)
+	vertexAttrib.shaderLocation = 0;
+	// Means vec2<f32> in the shader
+	vertexAttrib.format = VertexFormat::Float32x2;
+	// Index of the first element
+	vertexAttrib.offset = 0;
+
+	VertexBufferLayout vertexBufferLayout;
+	// [...] Build vertex buffer layout
+	vertexBufferLayout.attributeCount = 1;
+	vertexBufferLayout.attributes = &vertexAttrib;
+	// == Common to attributes from the same buffer ==
+	vertexBufferLayout.arrayStride = 2 * sizeof(float);
+	vertexBufferLayout.stepMode = VertexStepMode::Vertex;
 
     // Setup render pipeline
     RenderPipelineDescriptor pipelineDesc{};
     // Setup vertex shader
-    pipelineDesc.vertex.bufferCount = 0;
-    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
@@ -185,7 +229,30 @@ fn fs_main() -> @location(0) vec4f {
 	pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
     RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
+    std::cout << "✅ Render pipeline: " << pipeline << std::endl;
 
+    // Static vertex buffer
+    std::vector<float> vertexData = {
+        -0.5, -0.5,
+        +0.5, -0.5,
+        +0.0, +0.5,
+
+        -0.55f, -0.5,
+        -0.05f, +0.5,
+        -0.55f, +0.5,
+    };
+    int vertexCount = static_cast<int>(vertexData.size() / 2);
+
+    // Upload geometry to the GPU via buffer
+	BufferDescriptor bufferDesc;
+	bufferDesc.size = vertexData.size() * sizeof(float);
+	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
+	bufferDesc.mappedAtCreation = false;
+	Buffer vertexBuffer = device.createBuffer(bufferDesc);
+
+    queue.writeBuffer(vertexBuffer, 0, vertexData.data(), bufferDesc.size);
+
+    std::cout << "🔄 Starting main loop" << pipeline << std::endl;
     while (!glfwWindowShouldClose(window)) {
         // Check whether the user clicked on the close button (and any other
         // mouse/key event, which we don't use so far)
@@ -198,7 +265,6 @@ fn fs_main() -> @location(0) vec4f {
             // Texture might be null, if for example the window has been resized
             break;
         }
-
 		CommandEncoderDescriptor commandEncoderDesc{};
 		commandEncoderDesc.label = "Command Encoder";
 		CommandEncoder encoder = device.createCommandEncoder(commandEncoderDesc);
@@ -231,8 +297,12 @@ fn fs_main() -> @location(0) vec4f {
         // In its overall outline, drawing a triangle is as simple as this:
 		// Select which render pipeline to use
 		renderPass.setPipeline(pipeline);
-		// Draw 1 instance of a 3-vertices shape
-		renderPass.draw(3, 1, 0, 0);
+		
+        // Set vertex buffer while encoding the render pass
+		renderPass.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(float));
+
+		// We use the `vertexCount` variable instead of hard-coding the vertex count
+		renderPass.draw(vertexCount, 1, 0, 0);
 
         renderPass.end();
         nextTexture.release();
@@ -241,20 +311,29 @@ fn fs_main() -> @location(0) vec4f {
         cmdBufferDescriptor.nextInChain = nullptr;
         cmdBufferDescriptor.label = "Command buffer";
         CommandBuffer command = encoder.finish(cmdBufferDescriptor);
+        
         queue.submit(1, &command);
 
         // We can tell the swap chain to present the next texture.
         swapChain.present();
+        // renderPass.release();
+        // encoder.release();
+
+#ifdef WEBGPU_BACKEND_DAWN
+		// Check for pending error callbacks
+		device.tick();
+#endif
     }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
 
     swapChain.release();
     surface.release();
     adapter.release();
     device.release();
     instance.release();
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    queue.release();
 
     return 0;
 }
